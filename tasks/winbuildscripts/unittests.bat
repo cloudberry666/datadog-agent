@@ -7,10 +7,7 @@ if not exist c:\mnt\ goto nomntdir
 
 if NOT DEFINED PY_RUNTIMES set PY_RUNTIMES=%~1
 
-if exist c:\mnt\modcache.tar (
-    Powershell -C "7z e c:\tmp\modcache.tar c:\"
-    del /f c:\tmp/modcache.tar
-)
+call %~p0extract-modcache.bat
 
 mkdir \dev\go\src\github.com\DataDog\datadog-agent
 cd \dev\go\src\github.com\DataDog\datadog-agent
