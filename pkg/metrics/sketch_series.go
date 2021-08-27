@@ -159,9 +159,6 @@ func (sl SketchSeriesList) MarshalSplitCompress(bufferContext *marshaler.BufferC
 	startPayload := func() error {
 		var err error
 
-		if compressor != nil {
-		}
-
 		bufferContext.CompressorInput.Reset()
 		bufferContext.CompressorOutput.Reset()
 
