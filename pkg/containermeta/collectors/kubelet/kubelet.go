@@ -80,6 +80,8 @@ func (c *collector) Pull(ctx context.Context) error {
 		c.lastExpire = time.Now()
 	}
 
+	log.Debugf("got %d events in kubelet containermeta collector", len(events))
+
 	if len(events) > 0 {
 		c.store.Notify(events)
 	}
@@ -187,6 +189,8 @@ func (c *collector) parsePodContainers(
 			log.Debugf("cannot find spec for container %q", container.Name)
 		}
 
+		image.ID = container.ImageID
+
 		containerState := containermeta.ContainerState{}
 		if st := container.State.Running; st != nil {
 			containerState.Running = true
@@ -269,7 +273,6 @@ func buildImage(imageSpec string) containermeta.ContainerImage {
 		tag = "latest"
 	}
 
-	// TODO(juliogreff): should we get ID from somewhere?
 	image.Name = name
 	image.ShortName = shortName
 	image.Tag = tag

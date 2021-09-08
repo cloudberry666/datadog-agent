@@ -57,6 +57,7 @@ func NewStore() *Store {
 
 		candidates: candidates,
 		collectors: make(map[string]Collector),
+		eventCh:    make(chan []Event),
 	}
 }
 
@@ -259,8 +260,6 @@ func (s *Store) pull(ctx context.Context) {
 			if err != nil {
 				log.Warnf("error pulling from collector %q: %s", id, err.Error())
 			}
-
-			log.Debugf("collector %q pull finished", id)
 		}(id, c)
 	}
 }
@@ -289,8 +288,6 @@ func (s *Store) handleEvents(evs []Event) {
 			log.Errorf("cannot handle event of type %d. event dump: %+v", ev)
 		}
 	}
-
-	log.Debugf("handled %d events", len(evs))
 
 	for _, sub := range s.subscribers {
 		filter := sub.filter

@@ -24,6 +24,7 @@ import (
 func LoadComponents(confdPath string) {
 	// TODO(juliogreff): pass a local store to tagger and AD maybe? Also,
 	// other agents may need to initialize this as well.
+	containermeta.GlobalStore = containermeta.NewStore()
 	containermeta.GlobalStore.Run(context.Background())
 
 	// start the tagger. must be done before autodiscovery, as it needs to
