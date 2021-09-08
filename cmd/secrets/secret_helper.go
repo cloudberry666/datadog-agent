@@ -53,7 +53,13 @@ type secretsRequest struct {
 	Secrets []string `json:"secrets"`
 }
 
-// ReadSecrets implements a secrets reader from a directory/mount
+type backend interface {
+	// secretID has a different format on each secret backend. In the file
+	// backend, it's a path, whereas in the kubernetes secret one it has the
+	// following format: "namespace/name/key".
+	get(secretID string) s.Secret
+}
+
 func readSecrets(r io.Reader, w io.Writer, dir string) error {
 	in, err := ioutil.ReadAll(r)
 	if err != nil {
