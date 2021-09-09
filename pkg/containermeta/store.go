@@ -34,9 +34,11 @@ type subscriber struct {
 
 // Store contains metadata for container workloads.
 type Store struct {
-	mu          sync.RWMutex
-	store       map[Kind]map[string]Entity
-	subscribers []subscriber
+	storeMut sync.RWMutex
+	store    map[Kind]map[string]Entity
+
+	subscribersMut sync.RWMutex
+	subscribers    []subscriber
 
 	candidates map[string]Collector
 	collectors map[string]Collector
@@ -67,8 +69,10 @@ func (s *Store) Run(ctx context.Context) {
 	pullTicker := time.NewTicker(pullCollectorInterval)
 	health := health.RegisterLiveness("containermeta-store")
 
-	// Dummy ctx and cancel func until the first pull starts
-	pullCtx, pullCancel := context.WithCancel(ctx)
+	// Start a pull immediately to fill the store without waiting for the
+	// next tick.
+	pullCtx, pullCancel := context.WithTimeout(ctx, pullCollectorInterval)
+	s.pull(pullCtx)
 
 	log.Info("containermeta store initialized successfully")
 
@@ -119,14 +123,20 @@ func (s *Store) Subscribe(name string, filter *Filter) chan EventBundle {
 	// channel anyway.
 	ch := make(chan EventBundle)
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.subscribersMut.Lock()
+	defer s.subscribersMut.Unlock()
 
 	s.subscribers = append(s.subscribers, subscriber{
 		name:   name,
 		ch:     ch,
 		filter: filter,
 	})
+
+	// lock the store for reading only, as subscribers might need to read
+	// it for related entities (such as a pod's containers) while they
+	// process an event.
+	s.storeMut.RLock()
+	defer s.storeMut.RUnlock()
 
 	if len(s.store) > 0 {
 		evs := []Event{}
@@ -155,15 +165,10 @@ func (s *Store) Subscribe(name string, filter *Filter) chan EventBundle {
 	return ch
 }
 
-func notifyChannel(ch chan EventBundle, bundle EventBundle) {
-	ch <- bundle
-	<-bundle.Ch
-}
-
 // Unsubscribe ends a subscription to entity events and closes its channel.
 func (s *Store) Unsubscribe(ch chan EventBundle) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.subscribersMut.Lock()
+	defer s.subscribersMut.Unlock()
 
 	for i, sub := range s.subscribers {
 		if sub.ch == ch {
@@ -267,8 +272,7 @@ func (s *Store) pull(ctx context.Context) {
 }
 
 func (s *Store) handleEvents(evs []Event) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.storeMut.Lock()
 
 	// TODO(juliogreff): store entities per source
 
@@ -291,6 +295,14 @@ func (s *Store) handleEvents(evs []Event) {
 		}
 	}
 
+	// unlock the store before notifying subscribers, as they might need to
+	// read it for related entities (such as a pod's containers) while they
+	// process an event.
+	s.storeMut.Unlock()
+
+	s.subscribersMut.RLock()
+	defer s.subscribersMut.RUnlock()
+
 	for _, sub := range s.subscribers {
 		filter := sub.filter
 		filteredEvents := make([]Event, 0, len(evs))
@@ -311,8 +323,8 @@ func (s *Store) handleEvents(evs []Event) {
 }
 
 func (s *Store) getEntityByKind(kind Kind, id string) (Entity, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	s.storeMut.RLock()
+	defer s.storeMut.RUnlock()
 
 	entitiesOfKind, ok := s.store[kind]
 	if !ok {
@@ -325,6 +337,11 @@ func (s *Store) getEntityByKind(kind Kind, id string) (Entity, error) {
 	}
 
 	return entity, nil
+}
+
+func notifyChannel(ch chan EventBundle, bundle EventBundle) {
+	ch <- bundle
+	<-bundle.Ch
 }
 
 func init() {

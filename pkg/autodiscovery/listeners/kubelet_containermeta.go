@@ -5,9 +5,6 @@
 
 // +build kubelet
 
-// TODO(juliogreff): remove build tags after we remove kubelet listener and
-// move constants here
-
 package listeners
 
 import (
