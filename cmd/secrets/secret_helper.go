@@ -56,33 +56,47 @@ type backend interface {
 }
 
 func readSecrets(r io.Reader, w io.Writer, dir string) error {
-	in, err := ioutil.ReadAll(r)
+	inputSecrets, err := parseInputSecrets(r)
 	if err != nil {
 		return err
+	}
+
+	decodedSecrets := fetchSecretsUsingFile(inputSecrets, dir)
+
+	return writeDecodedSecrets(w, decodedSecrets)
+}
+
+func parseInputSecrets(r io.Reader) ([]string, error) {
+	in, err := ioutil.ReadAll(r)
+	if err != nil {
+		return nil, err
 	}
 
 	var request secretsRequest
 	err = json.Unmarshal(in, &request)
 	if err != nil {
-		return errors.New("failed to unmarshal json input")
+		return nil, errors.New("failed to unmarshal json input")
 	}
 
 	version := splitVersion(request.Version)
 	compatVersion := splitVersion(s.PayloadVersion)
 	if version[0] != compatVersion[0] {
-		return fmt.Errorf("incompatible protocol version %q", request.Version)
+		return nil, fmt.Errorf("incompatible protocol version %q", request.Version)
 	}
 
 	if len(request.Secrets) == 0 {
-		return errors.New("no secrets listed in input")
+		return nil, errors.New("no secrets listed in input")
 	}
 
-	response := fetchSecretsUsingFile(request.Secrets, dir)
+	return request.Secrets, nil
+}
 
-	out, err := json.Marshal(response)
+func writeDecodedSecrets(w io.Writer, resolvedSecrets map[string]s.Secret) error {
+	out, err := json.Marshal(resolvedSecrets)
 	if err != nil {
 		return err
 	}
+
 	_, err = w.Write(out)
 	return err
 }
