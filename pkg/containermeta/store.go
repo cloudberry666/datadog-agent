@@ -28,7 +28,7 @@ const (
 
 type subscriber struct {
 	name   string
-	ch     chan []Event
+	ch     chan EventBundle
 	filter *Filter
 }
 
@@ -113,17 +113,11 @@ func (s *Store) Run(ctx context.Context) {
 
 // Subscribe returns a channel where container metadata events will be streamed
 // as they happen.
-func (s *Store) Subscribe(name string, filter *Filter) chan []Event {
-	// this buffer size is an educated guess, as we know the rate of
-	// updates, but not how fast these can be streamed out yet. it most
-	// likely should be configurable.
-	const bufferSize = 100
-
-	// this is a `ch []Event` instead of a `ch Event` to improve
-	// throughput, as bursts of events are as likely to occur as isolated
-	// events, especially at startup or with collectors that periodically
-	// pull changes.
-	ch := make(chan []Event, bufferSize)
+func (s *Store) Subscribe(name string, filter *Filter) chan EventBundle {
+	// use an unbuffered channel since it's ok to block until the receiving
+	// end is free, and we need to wait for them to close the EventBundle's
+	// channel anyway.
+	ch := make(chan EventBundle)
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -152,14 +146,22 @@ func (s *Store) Subscribe(name string, filter *Filter) chan []Event {
 			}
 		}
 
-		ch <- evs
+		notifyChannel(ch, EventBundle{
+			Events: evs,
+			Ch:     make(chan struct{}),
+		})
 	}
 
 	return ch
 }
 
+func notifyChannel(ch chan EventBundle, bundle EventBundle) {
+	ch <- bundle
+	<-bundle.Ch
+}
+
 // Unsubscribe ends a subscription to entity events and closes its channel.
-func (s *Store) Unsubscribe(ch chan []Event) {
+func (s *Store) Unsubscribe(ch chan EventBundle) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -299,7 +301,10 @@ func (s *Store) handleEvents(evs []Event) {
 			}
 		}
 
-		sub.ch <- filteredEvents
+		notifyChannel(sub.ch, EventBundle{
+			Events: filteredEvents,
+			Ch:     make(chan struct{}),
+		})
 
 		log.Debugf("sent %d events to subscriber %q", len(filteredEvents), sub.name)
 	}

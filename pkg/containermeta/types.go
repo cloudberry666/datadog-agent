@@ -143,3 +143,10 @@ type Event struct {
 	Source string
 	Entity Entity
 }
+
+// EventBundle is a collection of events, and a channel that needs to be closed
+// when the receiving subscriber wants to unblock the notifier.
+type EventBundle struct {
+	Events []Event
+	Ch     chan struct{}
+}

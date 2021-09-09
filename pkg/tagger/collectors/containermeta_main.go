@@ -61,8 +61,8 @@ func (c *ContainerMetaCollector) Stream() error {
 
 	for {
 		select {
-		case evs := <-ch:
-			c.processEvents(evs)
+		case evBundle := <-ch:
+			c.processEvents(evBundle)
 
 		case <-health.C:
 

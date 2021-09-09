@@ -22,10 +22,10 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/log"
 )
 
-func (c *ContainerMetaCollector) processEvents(evs []containermeta.Event) {
+func (c *ContainerMetaCollector) processEvents(evBundle containermeta.EventBundle) {
 	tagInfos := []*TagInfo{}
 
-	for _, ev := range evs {
+	for _, ev := range evBundle.Events {
 		entity := ev.Entity
 		entityID := entity.GetID()
 
@@ -55,7 +55,13 @@ func (c *ContainerMetaCollector) processEvents(evs []containermeta.Event) {
 
 	}
 
+	// NOTE: haha, this is still async and race conditions will still
+	// happen :D since the containermeta will be the only collector in the
+	// tagger in the end, this can be turned into a sync call to
+	// processTagInfo
 	c.out <- tagInfos
+
+	close(evBundle.Ch)
 }
 
 func (c *ContainerMetaCollector) handleKubePod(ev containermeta.Event) []*TagInfo {

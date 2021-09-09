@@ -76,8 +76,8 @@ func (l *KubeletContainerMetaListener) Listen(newSvc chan<- Service, delSvc chan
 	go func() {
 		for {
 			select {
-			case evs := <-ch:
-				l.processEvents(evs, firstRun)
+			case evBundle := <-ch:
+				l.processEvents(evBundle, firstRun)
 				firstRun = false
 
 			case <-health.C:
@@ -101,8 +101,8 @@ func (l *KubeletContainerMetaListener) Stop() {
 	l.stop <- struct{}{}
 }
 
-func (l *KubeletContainerMetaListener) processEvents(events []containermeta.Event, firstRun bool) {
-	for _, ev := range events {
+func (l *KubeletContainerMetaListener) processEvents(evBundle containermeta.EventBundle, firstRun bool) {
+	for _, ev := range evBundle.Events {
 		entity := ev.Entity
 		entityID := entity.GetID()
 
@@ -122,6 +122,8 @@ func (l *KubeletContainerMetaListener) processEvents(events []containermeta.Even
 			log.Errorf("cannot handle event of type %d", ev.Type)
 		}
 	}
+
+	close(evBundle.Ch)
 }
 
 func (l *KubeletContainerMetaListener) processPod(pod containermeta.KubernetesPod, firstRun bool) {
