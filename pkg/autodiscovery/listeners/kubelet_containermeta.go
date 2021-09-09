@@ -49,7 +49,7 @@ func NewKubeletContainerMetaListener() (ServiceListener, error) {
 	}
 
 	return &KubeletContainerMetaListener{
-		store:    containermeta.GlobalStore,
+		store:    containermeta.GetGlobalStore(),
 		filters:  filters,
 		services: make(map[string]Service),
 		stop:     make(chan struct{}),

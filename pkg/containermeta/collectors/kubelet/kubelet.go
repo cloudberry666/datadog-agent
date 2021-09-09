@@ -82,9 +82,7 @@ func (c *collector) Pull(ctx context.Context) error {
 
 	log.Debugf("got %d events in kubelet containermeta collector", len(events))
 
-	if len(events) > 0 {
-		c.store.Notify(events)
-	}
+	c.store.Notify(events)
 
 	return nil
 }

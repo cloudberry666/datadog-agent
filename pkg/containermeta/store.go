@@ -16,10 +16,7 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/retry"
 )
 
-// GlobalStore is a global instance of the containermeta store available for
-// usage by consumers. Run() needs to be called before any data collection
-// happens.
-var GlobalStore *Store
+var globalStore *Store
 
 const (
 	retryCollectorInterval = 30 * time.Second
@@ -224,7 +221,9 @@ func (s *Store) GetECSTask(id string) (ECSTask, error) {
 
 // Notify notifies the store with a slice of events.
 func (s *Store) Notify(events []Event) {
-	s.eventCh <- events
+	if len(events) > 0 {
+		s.eventCh <- events
+	}
 }
 
 func (s *Store) startCandidates(ctx context.Context) {
@@ -344,6 +343,13 @@ func notifyChannel(ch chan EventBundle, bundle EventBundle) {
 	<-bundle.Ch
 }
 
-func init() {
-	GlobalStore = NewStore()
+// GetGlobalStore returns a global instance of the containermeta store,
+// creating one if it doesn't exist. Run() needs to be called before any data
+// collection happens.
+func GetGlobalStore() *Store {
+	if globalStore == nil {
+		globalStore = NewStore()
+	}
+
+	return globalStore
 }

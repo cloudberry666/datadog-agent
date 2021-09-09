@@ -95,7 +95,7 @@ func (c *ContainerMetaCollector) Fetch(ctx context.Context, entity string) ([]st
 
 func containermetaFactory() Collector {
 	return &ContainerMetaCollector{
-		store: containermeta.GlobalStore,
+		store: containermeta.GetGlobalStore(),
 	}
 }
 
