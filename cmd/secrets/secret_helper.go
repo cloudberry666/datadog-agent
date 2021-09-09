@@ -21,8 +21,32 @@ import (
 	s "github.com/DataDog/datadog-agent/pkg/secrets"
 )
 
+// This executable provides a "read" command to decode secrets. It can be used
+// in 2 different ways:
+//
+// 1) With the "--with-backend-prefixes" option enabled. Each input secret should
+// follow this format: "backendPrefix/some/path". The backend prefix indicates
+// where to fetch the secrets from. At the moment, we support "file" and
+// "kube_secret". The path can mean different things depending on the backend.
+// In "file" it's a file system path. In "kube_secret", it follows this format:
+// "namespace/name/key".
+//
+// 2) With the "--with-backend-prefixes" option disabled. The program expect a root
+// path in the arguments and input secrets are just paths relative to the root
+// one. So for example, if the secret is "my_secret" and the root path is
+// "/some/path", the decoded value of the secret will be the contents of
+// "/some/path/my_secret". This option was offered before introducing
+// "--with-backend-prefixes" and is kept to avoid breaking compatibility.
+
+const (
+	backendPrefixesFlag    = "with-backend-prefixes"
+	backendPrefixSeparator = "/"
+)
+
 func init() {
-	SecretHelperCmd.AddCommand(readSecretCmd)
+	cmd := readSecretCmd
+	cmd.Flags().Bool(backendPrefixesFlag, false, "Use prefixes to select the secret backend (file, kube_secret)")
+	SecretHelperCmd.AddCommand(cmd)
 }
 
 // SecretHelperCmd implements secrets backend helper commands
@@ -32,14 +56,23 @@ var SecretHelperCmd = &cobra.Command{
 	Long:  ``,
 }
 
-// ReadSecretsCmd implements reading secrets from a directory/volume mount
 var readSecretCmd = &cobra.Command{
 	Use:   "read",
-	Short: "Read secret from a directory",
+	Short: "Read secrets",
 	Long:  ``,
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1), // 0 when using the backend prefixes option, 1 when reading a file
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return readSecrets(os.Stdin, os.Stdout, args[0])
+		usePrefixes, err := cmd.Flags().GetBool(backendPrefixesFlag)
+		if err != nil {
+			return err
+		}
+
+		dir := ""
+		if len(args) == 1 {
+			dir = args[0]
+		}
+
+		return decodeSecrets(os.Stdin, os.Stdout, dir, usePrefixes, &backendSelector{})
 	},
 }
 
@@ -55,13 +88,18 @@ type backend interface {
 	get(secretID string) s.Secret
 }
 
-func readSecrets(r io.Reader, w io.Writer, dir string) error {
+func decodeSecrets(r io.Reader, w io.Writer, dir string, usePrefixes bool, selector *backendSelector) error {
 	inputSecrets, err := parseInputSecrets(r)
 	if err != nil {
 		return err
 	}
 
-	decodedSecrets := fetchSecretsUsingFile(inputSecrets, dir)
+	var decodedSecrets map[string]s.Secret
+	if usePrefixes {
+		decodedSecrets = readSecretsUsingPrefixes(inputSecrets, selector)
+	} else {
+		decodedSecrets = readSecretsFromFile(inputSecrets, dir)
+	}
 
 	return writeDecodedSecrets(w, decodedSecrets)
 }
@@ -101,15 +139,52 @@ func writeDecodedSecrets(w io.Writer, resolvedSecrets map[string]s.Secret) error
 	return err
 }
 
-func fetchSecretsUsingFile(secrets []string, dir string) map[string]s.Secret {
+func readSecretsFromFile(secrets []string, dir string) map[string]s.Secret {
 	res := make(map[string]s.Secret)
 
 	secretBackend := fileBackend{rootPath: dir}
-	for _, secretId := range secrets {
-		res[secretId] = secretBackend.get(secretId)
+	for _, secretID := range secrets {
+		res[secretID] = secretBackend.get(secretID)
 	}
 
 	return res
+}
+
+func readSecretsUsingPrefixes(secrets []string, selector *backendSelector) map[string]s.Secret {
+	res := make(map[string]s.Secret)
+
+	for _, secretID := range secrets {
+		prefix, id, err := parseSecretWithPrefix(secretID)
+		if err != nil {
+			res[secretID] = s.Secret{Value: "", ErrorMsg: err.Error()}
+			continue
+		}
+
+		secretBackend, err := selector.choose(prefix)
+		if err != nil {
+			res[secretID] = s.Secret{Value: "", ErrorMsg: err.Error()}
+			continue
+		}
+
+		res[secretID] = secretBackend.get(id)
+	}
+
+	return res
+}
+
+func parseSecretWithPrefix(secretID string) (prefix backendPrefix, id string, err error) {
+	split := strings.SplitN(secretID, backendPrefixSeparator, 2)
+	if len(split) != 2 {
+		return "", "", errors.New("invalid secret format")
+	}
+
+	prefix = backendPrefix(split[0])
+	if !prefix.isValid() {
+		return "", "", fmt.Errorf("backend not supported")
+	}
+
+	id = split[1]
+	return prefix, id, nil
 }
 
 func splitVersion(ver string) []string {

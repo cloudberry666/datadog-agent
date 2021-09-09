@@ -9,6 +9,9 @@ package secrets
 
 import (
 	"bytes"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -17,11 +20,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestReadSecrets(t *testing.T) {
+func TestDecodeSecrets(t *testing.T) {
 	tests := []struct {
 		name        string
 		in          string
 		out         string
+		usePrefixes bool
+		selector    backendSelector
 		err         string
 		skipWindows bool
 	}{
@@ -52,7 +57,7 @@ func TestReadSecrets(t *testing.T) {
 			err: `no secrets listed in input`,
 		},
 		{
-			name: "valid",
+			name: "valid input, reading from file",
 			in: `
 			{
 				"version": "1.0",
@@ -104,6 +109,49 @@ func TestReadSecrets(t *testing.T) {
 			}
 			`,
 		},
+		{
+			name: "valid input, reading from file and kube backends",
+			in: `
+			{
+				"version": "1.0",
+				"secrets": [
+					"file/read-secrets/secret1",
+					"kube_secret/some_namespace/some_name/some_key",
+					"file/read-secrets/secret2",
+					"kube_secret/another_namespace/another_name/another_key"
+				]
+			}
+			`,
+			out: `
+			{
+				"file/read-secrets/secret1": {
+					"value": "secret1-value"
+				},
+				"kube_secret/some_namespace/some_name/some_key": {
+					"value": "some_value"
+				},
+				"file/read-secrets/secret2": {
+					"error": "secret does not exist"
+				},
+				"kube_secret/another_namespace/another_name/another_key": {
+					"error": "secrets \"another_name\" not found"
+				}
+			}
+			`,
+			usePrefixes: true,
+			selector: backendSelector{
+				file: &fileBackend{rootPath: "./testdata"},
+				kubeSecret: &kubeSecretBackend{
+					kubeClient: fake.NewSimpleClientset(&v1.Secret{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "some_name",
+							Namespace: "some_namespace",
+						},
+						Data: map[string][]byte{"some_key": []byte("some_value")},
+					}),
+				},
+			},
+		},
 	}
 
 	path := filepath.Join("testdata", "read-secrets")
@@ -114,7 +162,7 @@ func TestReadSecrets(t *testing.T) {
 				t.Skip("skipped on windows")
 			}
 			var w bytes.Buffer
-			err := readSecrets(strings.NewReader(test.in), &w, path)
+			err := decodeSecrets(strings.NewReader(test.in), &w, path, test.usePrefixes, &test.selector)
 			out := string(w.Bytes())
 
 			if test.out != "" {
