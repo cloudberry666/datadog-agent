@@ -197,13 +197,14 @@ func (c *ContainerMetaCollector) handleKubePod(ev containermeta.Event) []*TagInf
 		standardTagKeys := []string{tagKeyEnv, tagKeyVersion, tagKeyService}
 		for _, key := range standardTagKeys {
 			label := fmt.Sprintf(podStandardLabelPrefix+"%s.%s", container.Name, key)
-
 			if value, ok := pod.Labels[label]; ok {
 				cTags.AddStandard(key, value)
 			}
+		}
 
-			value, ok := container.EnvVars[key]
-			if ok && value != "" {
+		standardEnvKeys := []string{envVarEnv, envVarVersion, envVarService}
+		for _, key := range standardEnvKeys {
+			if value, ok := container.EnvVars[key]; ok && value != "" {
 				cTags.AddStandard(key, value)
 			}
 		}

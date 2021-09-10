@@ -21,10 +21,16 @@ const (
 	containermetaCollectorName = "containermeta"
 )
 
+type metaStore interface {
+	Subscribe(string, *containermeta.Filter) chan containermeta.EventBundle
+	Unsubscribe(chan containermeta.EventBundle)
+	GetContainer(string) (containermeta.Container, error)
+}
+
 // ContainerMetaCollector collects tags from the metadata in the containermeta
 // store.
 type ContainerMetaCollector struct {
-	store *containermeta.Store
+	store metaStore
 	out   chan<- []*TagInfo
 	stop  chan struct{}
 

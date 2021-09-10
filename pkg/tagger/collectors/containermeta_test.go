@@ -10,17 +10,39 @@ import (
 	"testing"
 
 	"github.com/DataDog/datadog-agent/pkg/containermeta"
+	"github.com/DataDog/datadog-agent/pkg/errors"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/stretchr/testify/assert"
 )
 
+type store struct {
+	containers map[string]containermeta.Container
+}
+
+func (s *store) Subscribe(string, *containermeta.Filter) chan containermeta.EventBundle {
+	return nil
+}
+
+func (s *store) Unsubscribe(chan containermeta.EventBundle) {}
+
+func (s *store) GetContainer(id string) (containermeta.Container, error) {
+	c, ok := s.containers[id]
+	if !ok {
+		return c, errors.NewNotFound(id)
+	}
+
+	return c, nil
+}
+
 func TestHandleKubePod(t *testing.T) {
 	const (
-		podName      = "datadog-agent-foobar"
-		podNamespace = "default"
-		env          = "production"
-		svc          = "datadog-agent"
-		version      = "7.32.0"
+		containerID   = "foobarquux"
+		containerName = "agent"
+		podName       = "datadog-agent-foobar"
+		podNamespace  = "default"
+		env           = "production"
+		svc           = "datadog-agent"
+		version       = "7.32.0"
 	)
 
 	standardTags := []string{
@@ -34,7 +56,32 @@ func TestHandleKubePod(t *testing.T) {
 		ID:   "foobar",
 	}
 
-	entityID := fmt.Sprintf("kubernetes_pod_uid://foobar")
+	podTaggerEntityID := fmt.Sprintf("kubernetes_pod_uid://%s", podEntityID.ID)
+	containerTaggerEntityID := fmt.Sprintf("container_id://%s", containerID)
+
+	store := &store{
+		containers: map[string]containermeta.Container{
+			containerID: containermeta.Container{
+				EntityID: containermeta.EntityID{
+					Kind: containermeta.KindContainer,
+					ID:   containerID,
+				},
+				EntityMeta: containermeta.EntityMeta{
+					Name: containerName,
+				},
+				Image: containermeta.ContainerImage{
+					ID:        "datadog/agent@sha256:a63d3f66fb2f69d955d4f2ca0b229385537a77872ffc04290acae65aed5317d2",
+					RawName:   "datadog/agent@sha256:a63d3f66fb2f69d955d4f2ca0b229385537a77872ffc04290acae65aed5317d2",
+					Name:      "datadog/agent",
+					ShortName: "agent",
+					Tag:       "latest",
+				},
+				EnvVars: map[string]string{
+					"": "",
+				},
+			},
+		},
+	}
 
 	tests := []struct {
 		name              string
@@ -108,7 +155,7 @@ func TestHandleKubePod(t *testing.T) {
 			expected: []*TagInfo{
 				{
 					Source: containermetaCollectorName,
-					Entity: entityID,
+					Entity: podTaggerEntityID,
 					HighCardTags: []string{
 						"gitcommit:foobar",
 					},
@@ -137,26 +184,45 @@ func TestHandleKubePod(t *testing.T) {
 			},
 		},
 		{
-			name: "pod with containers",
+			name: "pod with fully formed container",
 			pod: containermeta.KubernetesPod{
 				EntityID: podEntityID,
 				EntityMeta: containermeta.EntityMeta{
 					Name:      podName,
 					Namespace: podNamespace,
 				},
-				// TODO(juliogreff): add containers
-				Containers: []string{},
+				Containers: []string{containerID},
 			},
 			expected: []*TagInfo{
 				{
 					Source:       containermetaCollectorName,
-					Entity:       entityID,
+					Entity:       podTaggerEntityID,
 					HighCardTags: []string{},
 					OrchestratorCardTags: []string{
 						fmt.Sprintf("pod_name:%s", podName),
 					},
 					LowCardTags: append([]string{
 						fmt.Sprintf("kube_namespace:%s", podNamespace),
+					}),
+					StandardTags: []string{},
+				},
+				{
+					Source: containermetaCollectorName,
+					Entity: containerTaggerEntityID,
+					HighCardTags: []string{
+						fmt.Sprintf("container_id:%s", containerID),
+						fmt.Sprintf("display_container_name:%s_%s", containerName, podName),
+					},
+					OrchestratorCardTags: []string{
+						fmt.Sprintf("pod_name:%s", podName),
+					},
+					LowCardTags: append([]string{
+						fmt.Sprintf("kube_namespace:%s", podNamespace),
+						fmt.Sprintf("kube_container_name:%s", containerName),
+						"image_id:datadog/agent@sha256:a63d3f66fb2f69d955d4f2ca0b229385537a77872ffc04290acae65aed5317d2",
+						"image_name:datadog/agent",
+						"image_tag:latest",
+						"short_image:agent",
 					}),
 					StandardTags: []string{},
 				},
@@ -179,7 +245,7 @@ func TestHandleKubePod(t *testing.T) {
 			expected: []*TagInfo{
 				{
 					Source:       containermetaCollectorName,
-					Entity:       entityID,
+					Entity:       podTaggerEntityID,
 					HighCardTags: []string{},
 					OrchestratorCardTags: []string{
 						fmt.Sprintf("pod_name:%s", podName),
@@ -197,7 +263,9 @@ func TestHandleKubePod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			collector := &ContainerMetaCollector{}
+			collector := &ContainerMetaCollector{
+				store: store,
+			}
 			collector.init(tt.labelsAsTags, tt.annotationsAsTags)
 
 			actual := collector.handleKubePod(containermeta.Event{
