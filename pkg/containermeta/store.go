@@ -143,7 +143,10 @@ func (s *Store) Subscribe(name string, filter *Filter) chan EventBundle {
 				continue
 			}
 
-			// TODO(juliogreff): implement filtering by source
+			// TODO(juliogreff): implement filtering by source once
+			// each source has its own separate store. since at the
+			// time of writing there's a single source, this should
+			// not matter.
 
 			for _, entity := range entitiesOfKind {
 				evs = append(evs, Event{
@@ -272,8 +275,6 @@ func (s *Store) pull(ctx context.Context) {
 
 func (s *Store) handleEvents(evs []Event) {
 	s.storeMut.Lock()
-
-	// TODO(juliogreff): store entities per source
 
 	for _, ev := range evs {
 		meta := ev.Entity.GetID()

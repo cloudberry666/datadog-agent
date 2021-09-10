@@ -23,9 +23,7 @@ import (
 
 const (
 	collectorID = "kubelet"
-	// TODO(juliogreff): expireFreq is much faster in AD (15s) than in the
-	// tagger (5m)
-	expireFreq = 5 * time.Minute
+	expireFreq  = 15 * time.Second
 )
 
 type collector struct {

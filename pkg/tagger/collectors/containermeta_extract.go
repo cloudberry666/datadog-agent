@@ -3,14 +3,11 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// +build kubelet
-
-// TODO(juliogreff): remove build tags after we remove kubelet collector and
-// move constants here
-
 package collectors
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -20,6 +17,13 @@ import (
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes"
 	"github.com/DataDog/datadog-agent/pkg/util/kubernetes/kubelet"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+)
+
+const (
+	podAnnotationPrefix              = "ad.datadoghq.com/"
+	podContainerTagsAnnotationFormat = podAnnotationPrefix + "%s.tags"
+	podTagsAnnotation                = podAnnotationPrefix + "tags"
+	podStandardLabelPrefix           = "tags.datadoghq.com/"
 )
 
 func (c *ContainerMetaCollector) processEvents(evBundle containermeta.EventBundle) {
@@ -190,12 +194,17 @@ func (c *ContainerMetaCollector) handleKubePod(ev containermeta.Event) []*TagInf
 		}
 
 		// Enrich with standard tags from labels for this container if present
-		labelTags := []string{tagKeyEnv, tagKeyVersion, tagKeyService}
-		for _, tag := range labelTags {
-			label := fmt.Sprintf(podStandardLabelPrefix+"%s.%s", container.Name, tag)
+		standardTagKeys := []string{tagKeyEnv, tagKeyVersion, tagKeyService}
+		for _, key := range standardTagKeys {
+			label := fmt.Sprintf(podStandardLabelPrefix+"%s.%s", container.Name, key)
 
 			if value, ok := pod.Labels[label]; ok {
-				cTags.AddStandard(tag, value)
+				cTags.AddStandard(key, value)
+			}
+
+			value, ok := container.EnvVars[key]
+			if ok && value != "" {
+				cTags.AddStandard(key, value)
 			}
 		}
 
@@ -210,16 +219,6 @@ func (c *ContainerMetaCollector) handleKubePod(ev containermeta.Event) []*TagInf
 					cTags.AddAuto(tagName, val)
 				}
 			}
-		}
-
-		standardTagKeys := []string{tagKeyEnv, tagKeyVersion, tagKeyService}
-		for _, key := range standardTagKeys {
-			value, ok := container.EnvVars[key]
-			if !ok || value == "" {
-				continue
-			}
-
-			cTags.AddStandard(key, value)
 		}
 
 		image := container.Image
@@ -255,4 +254,51 @@ func buildTaggerEntityID(entityID containermeta.EntityID) string {
 	}
 
 	return ""
+}
+
+// extractTagsFromMap extracts tags contained in a JSON string stored at the
+// given key. If no valid tag definition is found at this key, it will return
+// false. Otherwise it returns a map containing extracted tags.
+// The map values are string slices to support tag keys with multiple values.
+func extractTagsFromMap(key string, input map[string]string) (map[string][]string, bool) {
+	jsonTags, found := input[key]
+	if !found {
+		return nil, false
+	}
+
+	tags, err := parseJSONValue(jsonTags)
+	if err != nil {
+		log.Errorf("can't parse value for annotation %s: %s", key, err)
+		return nil, false
+	}
+
+	return tags, true
+}
+
+// parseJSONValue returns a map from the given JSON string.
+func parseJSONValue(value string) (map[string][]string, error) {
+	if value == "" {
+		return nil, errors.New("value is empty")
+	}
+
+	result := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(value), &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal JSON: %s", err)
+	}
+
+	tags := map[string][]string{}
+	for key, value := range result {
+		switch v := value.(type) {
+		case string:
+			tags[key] = append(tags[key], v)
+		case []interface{}:
+			for _, tag := range v {
+				tags[key] = append(tags[key], fmt.Sprint(tag))
+			}
+		default:
+			log.Debugf("Tag value %s is not valid, must be a string or an array, skipping", v)
+		}
+	}
+
+	return tags, nil
 }

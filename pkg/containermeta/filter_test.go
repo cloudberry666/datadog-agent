@@ -35,78 +35,84 @@ func TestFilterMatch(t *testing.T) {
 
 		{
 			name: "matching single kind",
-			filter: &Filter{
-				Kinds: []Kind{KindContainer},
-			},
+			filter: NewFilter(
+				[]Kind{KindContainer},
+				nil,
+			),
 			event:    ev,
 			expected: true,
 		},
 		{
 			name: "matching one of kinds",
-			filter: &Filter{
-				Kinds: []Kind{KindContainer, KindKubernetesPod},
-			},
+			filter: NewFilter(
+				[]Kind{KindContainer, KindKubernetesPod},
+				nil,
+			),
 			event:    ev,
 			expected: true,
 		},
 		{
 			name: "matching no kind",
-			filter: &Filter{
-				Kinds: []Kind{KindKubernetesPod},
-			},
+			filter: NewFilter(
+				[]Kind{KindKubernetesPod},
+				nil,
+			),
 			event:    ev,
 			expected: false,
 		},
 
 		{
 			name: "matching single source",
-			filter: &Filter{
-				Sources: []string{fooSource},
-			},
+			filter: NewFilter(
+				nil,
+				[]string{fooSource},
+			),
 			event:    ev,
 			expected: true,
 		},
 		{
 			name: "matching one of sources",
-			filter: &Filter{
-				Sources: []string{fooSource, barSource},
-			},
+			filter: NewFilter(
+				nil,
+				[]string{fooSource, barSource},
+			),
 			event:    ev,
 			expected: true,
 		},
 		{
 			name: "matching no source",
-			filter: &Filter{
-				Sources: []string{barSource},
-			},
+			filter: NewFilter(
+				nil,
+				[]string{barSource},
+			),
 			event:    ev,
 			expected: false,
 		},
 
 		{
 			name: "matching source but not kind",
-			filter: &Filter{
-				Kinds:   []Kind{KindKubernetesPod},
-				Sources: []string{fooSource},
-			},
+			filter: NewFilter(
+				[]Kind{KindKubernetesPod},
+				[]string{fooSource},
+			),
 			event:    ev,
 			expected: false,
 		},
 		{
 			name: "matching kind but not source",
-			filter: &Filter{
-				Kinds:   []Kind{KindContainer},
-				Sources: []string{barSource},
-			},
+			filter: NewFilter(
+				[]Kind{KindContainer},
+				[]string{barSource},
+			),
 			event:    ev,
 			expected: false,
 		},
 		{
 			name: "matching both kind and source",
-			filter: &Filter{
-				Kinds:   []Kind{KindContainer},
-				Sources: []string{fooSource},
-			},
+			filter: NewFilter(
+				[]Kind{KindContainer},
+				[]string{fooSource},
+			),
 			event:    ev,
 			expected: true,
 		},

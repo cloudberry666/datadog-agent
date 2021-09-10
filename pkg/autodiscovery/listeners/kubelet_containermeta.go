@@ -63,10 +63,10 @@ func (l *KubeletContainerMetaListener) Listen(newSvc chan<- Service, delSvc chan
 
 	const name = "ad-containermeta-kubeletlistener"
 
-	ch := l.store.Subscribe(name, &containermeta.Filter{
-		Sources: []string{"kubelet"},
-		Kinds:   []containermeta.Kind{containermeta.KindKubernetesPod},
-	})
+	ch := l.store.Subscribe(name, containermeta.NewFilter(
+		[]containermeta.Kind{containermeta.KindKubernetesPod},
+		[]string{"kubelet"},
+	))
 	health := health.RegisterLiveness(name)
 	firstRun := true
 
@@ -214,8 +214,6 @@ func (l *KubeletContainerMetaListener) createContainerService(pod containermeta.
 		return ports[i].Port < ports[j].Port
 	})
 
-	// TODO(juliogreff): this used to be "<runtime>://<id>" but now is
-	// "container_id://<id>", is that ok?
 	entity := containers.BuildEntityName("container_id", container.ID)
 	svc := &KubeContainerService{
 		entity:       entity,

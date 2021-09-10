@@ -3,11 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/).
 // Copyright 2016-present Datadog, Inc.
 
-// +build kubelet
-
-// TODO(juliogreff): remove build tags after we remove kubelet collector and
-// move constants here
-
 package collectors
 
 import (
@@ -46,10 +41,14 @@ func (c *ContainerMetaCollector) Detect(ctx context.Context, out chan<- []*TagIn
 
 	labelsAsTags := config.Datadog.GetStringMapString("kubernetes_pod_labels_as_tags")
 	annotationsAsTags := config.Datadog.GetStringMapString("kubernetes_pod_annotations_as_tags")
-	c.labelsAsTags, c.globLabels = utils.InitMetadataAsTags(labelsAsTags)
-	c.annotationsAsTags, c.globAnnotations = utils.InitMetadataAsTags(annotationsAsTags)
+	c.init(labelsAsTags, annotationsAsTags)
 
 	return StreamCollection, nil
+}
+
+func (c *ContainerMetaCollector) init(labelsAsTags, annotationsAsTags map[string]string) {
+	c.labelsAsTags, c.globLabels = utils.InitMetadataAsTags(labelsAsTags)
+	c.annotationsAsTags, c.globAnnotations = utils.InitMetadataAsTags(annotationsAsTags)
 }
 
 // Stream runs the continuous event watching loop and sends new tags to the
@@ -103,8 +102,5 @@ func init() {
 	// NOTE: ContainerMetaCollector is meant to be used as the single
 	// collector, so priority doesn't matter and should be removed entirely
 	// after migration is done.
-
-	// NOTE: uncomment this and remove all other collector registrations
-	// once ContainerMetaCollector is ready for release.
 	registerCollector(containermetaCollectorName, containermetaFactory, NodeRuntime)
 }
