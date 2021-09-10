@@ -10,9 +10,11 @@ package apiserver
 import (
 	"context"
 	"errors"
+	"time"
 
 	apiv1 "github.com/DataDog/datadog-agent/pkg/clusteragent/api/v1"
 	"github.com/DataDog/datadog-agent/pkg/util/log"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -59,5 +61,11 @@ func GetMetadataMapBundleOnAllNodes(_ *APIClient) (*apiv1.MetadataResponse, erro
 // GetNodeLabels retrieves the labels of the queried node from the cache of the shared informer.
 func GetNodeLabels(_ *APIClient, nodeName string) (map[string]string, error) {
 	log.Errorf("GetNodeLabels not implemented %s", ErrNotCompiled.Error())
+	return nil, nil
+}
+
+// GetKubeClient returns a Kubernetes client.
+func GetKubeClient(timeout time.Duration) (kubernetes.Interface, error) {
+	log.Errorf("GetKubeClient not implemented %s", ErrNotCompiled.Error())
 	return nil, nil
 }
