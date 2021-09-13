@@ -11,6 +11,7 @@ type Filter struct {
 	sources map[string]struct{}
 }
 
+// NewFilter creates a new filter for subscribing to containermeta events.
 func NewFilter(kinds []Kind, sources []string) *Filter {
 	var kindSet map[Kind]struct{}
 	if len(kinds) > 0 {

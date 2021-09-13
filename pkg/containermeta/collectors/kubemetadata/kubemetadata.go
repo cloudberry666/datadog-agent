@@ -5,7 +5,7 @@
 
 // +build kubeapiserver,kubelet
 
-package kube_metadata
+package kubemetadata
 
 import (
 	"context"
