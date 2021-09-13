@@ -1,6 +1,6 @@
 # Inventory Payload
 
-This payload populates some of the field, for the agent, in the `inventories` product in DataDog.
+This package populates some of the agent-related fields in the `inventories` product in DataDog.
 
 This is enabled by default but can be turned off using `inventories_enabled` config.
 
