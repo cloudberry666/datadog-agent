@@ -29,7 +29,7 @@ The payload is a JSON dict with the following fields
 
 - `hostname` - **string**: the hostname of the agent as shown on the status page.
 - `timestamp` - **int**: the timestamp when the payload was created.
-- `check_metadata` - **dict of string to list**: dict keys the check name and value are a list of the metadata for each
+- `check_metadata` - **dict of string to list**: dictionary with check names as keys; values are a list of the metadata for each
   instance of that check.
   Each instance is composed of:
     - `last_updated` - **int**: timestamp of the last metadata update for this instance
