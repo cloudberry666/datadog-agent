@@ -8,6 +8,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -34,6 +35,7 @@ type safeConfig struct {
 func (c *safeConfig) Set(key string, value interface{}) {
 	c.Lock()
 	defer c.Unlock()
+	fmt.Fprintf(os.Stderr, "SET %#v %#v\n", key, value)
 	c.Viper.Set(key, value)
 }
 

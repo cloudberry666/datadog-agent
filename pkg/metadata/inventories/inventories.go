@@ -60,6 +60,23 @@ var (
 		"cloud_provider": {},
 		// hostname_source is the source of the hostname property, such as `gce` or `azure`.
 		"hostname_source": {},
+
+		// config_apm_dd_url contains the configuration value apm_config.dd_url
+		"config_apm_dd_url": {},
+		// config_dd_url contains the configuration value dd_url
+		"config_dd_url": {},
+		// config_logs_dd_url contains the configuration value logs_config.logs_dd_url
+		"config_logs_dd_url": {},
+		// config_logs_socks5_proxy_address contains the configuration value logs_config.socks5_proxy_address
+		"config_logs_socks5_proxy_address": {},
+		// config_no_proxy contains the configuration value proxy.no_proxy.  It is an array of strings.
+		"config_no_proxy": {},
+		// config_process_dd_url contains the configuration value process_config.process_dd_url
+		"config_process_dd_url": {},
+		// config_proxy_http contains the configuration value proxy.http
+		"config_proxy_http": {},
+		// config_proxy_https contains the configuration value proxy.https
+		"config_proxy_https": {},
 	}
 )
 
