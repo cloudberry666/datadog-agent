@@ -6,6 +6,7 @@
 package inventories
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -51,18 +52,25 @@ var (
 	// For testing purposes
 	timeNow   = time.Now
 	timeSince = time.Since
-)
 
-const (
-	// CloudProviderMetatadaName is the field name to use to set the cloud
-	// provider name in the agent metadata.
-	CloudProviderMetatadaName = "cloud_provider"
+	// KnownAgentMetadata lists all known agent-metadata keys.  Setting a key
+	// not on this list will result in a runtime panic.
+	KnownAgentMetadata = map[string]struct{}{
+		// cloud_provider is the name of the local cloud provider
+		"cloud_provider": {},
+		// hostname_source is the source of the hostname property, such as `gce` or `azure`.
+		"hostname_source": {},
+	}
 )
 
 // SetAgentMetadata updates the agent metadata value in the cache
 func SetAgentMetadata(name string, value interface{}) {
 	agentCacheMutex.Lock()
 	defer agentCacheMutex.Unlock()
+
+	if _, found := KnownAgentMetadata[name]; !found {
+		panic(fmt.Sprintf("Agent metadata key %s not defined", name))
+	}
 
 	if agentMetadataCache[name] != value {
 		agentMetadataCache[name] = value

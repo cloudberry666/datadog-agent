@@ -92,7 +92,7 @@ func TestGetPayload(t *testing.T) {
 	timeNow = func() time.Time { return startNow } // time of the first run
 	defer func() { timeNow = time.Now }()
 
-	SetAgentMetadata("test", true)
+	SetAgentMetadata("hostname_source", "test")
 	SetCheckMetadata("check1_instance1", "check_provided_key1", 123)
 	SetCheckMetadata("check1_instance1", "check_provided_key2", "Hi")
 	SetCheckMetadata("non_running_checkid", "check_provided_key1", "this_should_be_kept")
@@ -103,7 +103,7 @@ func TestGetPayload(t *testing.T) {
 
 	agentMetadata := *p.AgentMetadata
 	assert.Len(t, agentMetadata, 1)
-	assert.Equal(t, true, agentMetadata["test"])
+	assert.Equal(t, "test", agentMetadata["hostname_source"])
 
 	checkMetadata := *p.CheckMetadata
 	assert.Len(t, checkMetadata, 3)
@@ -138,7 +138,7 @@ func TestGetPayload(t *testing.T) {
 
 	agentMetadata = *p.AgentMetadata
 	assert.Len(t, agentMetadata, 1)
-	assert.Equal(t, true, agentMetadata["test"])
+	assert.Equal(t, "test", agentMetadata["hostname_source"])
 
 	checkMetadata = *p.CheckMetadata
 	assert.Len(t, checkMetadata, 3)
@@ -205,7 +205,7 @@ func TestGetPayload(t *testing.T) {
 		},
 		"agent_metadata":
 		{
-			"test": true
+			"hostname_source": "test"
 		}
 	}`
 	jsonString = fmt.Sprintf(jsonString, startNow.UnixNano(), startNow.UnixNano(), agentStartupTime.UnixNano(), originalStartNow.UnixNano(), originalStartNow.UnixNano())
@@ -236,16 +236,16 @@ func TestSetup(t *testing.T) {
 	assert.False(t, waitForCalledSignal(ms.sendNowCalled))
 
 	// New metadata should trigger the collector
-	SetAgentMetadata("key", "value")
+	SetAgentMetadata("hostname_source", "clouds")
 	assert.True(t, waitForCalledSignal(ms.sendNowCalled))
 	assert.Equal(t, time.Duration(0), ms.lastSendNowDelay)
 
 	// The same metadata shouldn't
-	SetAgentMetadata("key", "value")
+	SetAgentMetadata("hostname_source", "clouds")
 	assert.False(t, waitForCalledSignal(ms.sendNowCalled))
 
 	// Different metadata for the same key should
-	SetAgentMetadata("key", "new_value")
+	SetAgentMetadata("hostname_source", "delphi")
 	assert.True(t, waitForCalledSignal(ms.sendNowCalled))
 	assert.Equal(t, time.Duration(0), ms.lastSendNowDelay)
 
@@ -253,9 +253,18 @@ func TestSetup(t *testing.T) {
 	timeSince = func(t time.Time) time.Duration { return 0 * time.Second }
 
 	// Different metadata after a short time should trigger the collector but with a delay
-	SetAgentMetadata("key", "yet_another_value")
+	SetAgentMetadata("hostname_source", "random-guess")
 	assert.True(t, waitForCalledSignal(ms.sendNowCalled))
 	assert.True(t, ms.lastSendNowDelay > time.Duration(0))
+}
+
+func TestPanicOnUnknownAgentMetadata(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected panic did not occur")
+		}
+	}()
+	SetAgentMetadata("no-such-key", true)
 }
 
 func Test_createCheckInstanceMetadata_returnsNewMetadata(t *testing.T) {

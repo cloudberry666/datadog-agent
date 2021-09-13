@@ -46,7 +46,7 @@ func DetectCloudProvider() {
 
 	for _, cloudDetector := range detectors {
 		if cloudDetector.callback() {
-			inventories.SetAgentMetadata(inventories.CloudProviderMetatadaName, cloudDetector.name)
+			inventories.SetAgentMetadata("cloud_provider", cloudDetector.name)
 			log.Infof("Cloud provider %s detected", cloudDetector.name)
 			return
 		}
