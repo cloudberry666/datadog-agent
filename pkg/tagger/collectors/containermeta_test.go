@@ -36,13 +36,14 @@ func (s *store) GetContainer(id string) (containermeta.Container, error) {
 
 func TestHandleKubePod(t *testing.T) {
 	const (
-		containerID   = "foobarquux"
-		containerName = "agent"
-		podName       = "datadog-agent-foobar"
-		podNamespace  = "default"
-		env           = "production"
-		svc           = "datadog-agent"
-		version       = "7.32.0"
+		fullyFleshedContainerID = "foobarquux"
+		noEnvContainerID        = "foobarbaz"
+		containerName           = "agent"
+		podName                 = "datadog-agent-foobar"
+		podNamespace            = "default"
+		env                     = "production"
+		svc                     = "datadog-agent"
+		version                 = "7.32.0"
 	)
 
 	standardTags := []string{
@@ -57,14 +58,15 @@ func TestHandleKubePod(t *testing.T) {
 	}
 
 	podTaggerEntityID := fmt.Sprintf("kubernetes_pod_uid://%s", podEntityID.ID)
-	containerTaggerEntityID := fmt.Sprintf("container_id://%s", containerID)
+	fullyFleshedContainerTaggerEntityID := fmt.Sprintf("container_id://%s", fullyFleshedContainerID)
+	noEnvContainerTaggerEntityID := fmt.Sprintf("container_id://%s", noEnvContainerID)
 
 	store := &store{
 		containers: map[string]containermeta.Container{
-			containerID: containermeta.Container{
+			fullyFleshedContainerID: containermeta.Container{
 				EntityID: containermeta.EntityID{
 					Kind: containermeta.KindContainer,
-					ID:   containerID,
+					ID:   fullyFleshedContainerID,
 				},
 				EntityMeta: containermeta.EntityMeta{
 					Name: containerName,
@@ -80,6 +82,15 @@ func TestHandleKubePod(t *testing.T) {
 					"DD_ENV":     env,
 					"DD_SERVICE": svc,
 					"DD_VERSION": version,
+				},
+			},
+			noEnvContainerID: containermeta.Container{
+				EntityID: containermeta.EntityID{
+					Kind: containermeta.KindContainer,
+					ID:   noEnvContainerID,
+				},
+				EntityMeta: containermeta.EntityMeta{
+					Name: containerName,
 				},
 			},
 		},
@@ -186,14 +197,14 @@ func TestHandleKubePod(t *testing.T) {
 			},
 		},
 		{
-			name: "pod with fully formed container",
+			name: "pod with fully formed container, standard tags from env",
 			pod: containermeta.KubernetesPod{
 				EntityID: podEntityID,
 				EntityMeta: containermeta.EntityMeta{
 					Name:      podName,
 					Namespace: podNamespace,
 				},
-				Containers: []string{containerID},
+				Containers: []string{fullyFleshedContainerID},
 			},
 			expected: []*TagInfo{
 				{
@@ -210,9 +221,9 @@ func TestHandleKubePod(t *testing.T) {
 				},
 				{
 					Source: containermetaCollectorName,
-					Entity: containerTaggerEntityID,
+					Entity: fullyFleshedContainerTaggerEntityID,
 					HighCardTags: []string{
-						fmt.Sprintf("container_id:%s", containerID),
+						fmt.Sprintf("container_id:%s", fullyFleshedContainerID),
 						fmt.Sprintf("display_container_name:%s_%s", containerName, podName),
 					},
 					OrchestratorCardTags: []string{
@@ -225,6 +236,52 @@ func TestHandleKubePod(t *testing.T) {
 						"image_name:datadog/agent",
 						"image_tag:latest",
 						"short_image:agent",
+					}, standardTags...),
+					StandardTags: standardTags,
+				},
+			},
+		},
+		{
+			name: "pod with container, standard tags from labels",
+			pod: containermeta.KubernetesPod{
+				EntityID: podEntityID,
+				EntityMeta: containermeta.EntityMeta{
+					Name:      podName,
+					Namespace: podNamespace,
+					Labels: map[string]string{
+						"tags.datadoghq.com/agent.env":     env,
+						"tags.datadoghq.com/agent.service": svc,
+						"tags.datadoghq.com/agent.version": version,
+					},
+				},
+				Containers: []string{noEnvContainerID},
+			},
+			expected: []*TagInfo{
+				{
+					Source:       containermetaCollectorName,
+					Entity:       podTaggerEntityID,
+					HighCardTags: []string{},
+					OrchestratorCardTags: []string{
+						fmt.Sprintf("pod_name:%s", podName),
+					},
+					LowCardTags: append([]string{
+						fmt.Sprintf("kube_namespace:%s", podNamespace),
+					}),
+					StandardTags: []string{},
+				},
+				{
+					Source: containermetaCollectorName,
+					Entity: noEnvContainerTaggerEntityID,
+					HighCardTags: []string{
+						fmt.Sprintf("container_id:%s", noEnvContainerID),
+						fmt.Sprintf("display_container_name:%s_%s", containerName, podName),
+					},
+					OrchestratorCardTags: []string{
+						fmt.Sprintf("pod_name:%s", podName),
+					},
+					LowCardTags: append([]string{
+						fmt.Sprintf("kube_namespace:%s", podNamespace),
+						fmt.Sprintf("kube_container_name:%s", containerName),
 					}, standardTags...),
 					StandardTags: standardTags,
 				},
