@@ -16,7 +16,7 @@ Any part of the agent can add metadata to the inventory payload.
 
 ## Check metadata
 
-`SetCheckMetadata` register data per check instance. Metadata can include the check version, the version of the
+`SetCheckMetadata` registers data per check instance. Metadata can include the check version, the version of the
 monitored software, ... It depends on each check.
 
 ## Agent metadata
