@@ -77,7 +77,7 @@ type KubePodService struct {
 var _ Service = &KubePodService{}
 
 func init() {
-	Register("kubelet", NewKubeletListener)
+	Register("kubelet-isnomore", NewKubeletListener)
 }
 
 func NewKubeletListener() (ServiceListener, error) {

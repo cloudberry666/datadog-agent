@@ -24,7 +24,7 @@ import (
 )
 
 func init() {
-	Register("kubelet-containermeta", NewKubeletContainerMetaListener)
+	Register("kubelet", NewKubeletContainerMetaListener)
 }
 
 // KubeletContainerMetaListener listens to pod creation through a subscription
@@ -202,7 +202,7 @@ func (l *KubeletContainerMetaListener) createContainerService(pod containermeta.
 		crTime = integration.After
 	}
 
-	var ports []ContainerPort
+	ports := []ContainerPort{}
 	for _, port := range container.Ports {
 		ports = append(ports, ContainerPort{
 			Port: port.Port,
