@@ -35,7 +35,7 @@ The payload is a JSON dict with the following fields
     - `last_updated` - **int**: timestamp of the last metadata update for this instance
     - `config.hash` - **string**: the instance ID for this instance (as shown in the status page).
     - `config.provider` - **string**: where the configuration came from for this instance (disk, docker labels, ...).
-    - Any other metadata register by the instance (instance version, version of the software monitored, ...).
+    - Any other metadata registered by the instance (instance version, version of the software monitored, ...).
 - `agent_metadata` - **dict of string to JSON type**:
   - `cloud_provider` - **string**: the name of the cloud provider detected by the Agent (omitted if no cloud is detected).
   - `hostname_source` - **string**: the source for the agent hostname (see pkg/util/hostname.go:GetHostnameData).
