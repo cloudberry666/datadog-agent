@@ -27,7 +27,7 @@ monitored software, ... It depends on each check.
 
 The payload is a JSON dict with the following fields
 
-- `hostname` - **string**: the hostname of the agent as show on the status page.
+- `hostname` - **string**: the hostname of the agent as shown on the status page.
 - `timestamp` - **int**: the timestamp when the payload was created.
 - `check_metadata` - **dict of string to list**: dict keys the check name and value are a list of the metadata for each
   instance of that check.
