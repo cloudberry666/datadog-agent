@@ -55,6 +55,7 @@ func TestCreateKubeletServices(t *testing.T) {
 		EntityMeta: containermeta.EntityMeta{
 			Name: containerName,
 		},
+		Runtime: containermeta.ContainerRuntimeDocker,
 	}
 
 	newSvcCh := make(chan Service)
@@ -69,9 +70,9 @@ func TestCreateKubeletServices(t *testing.T) {
 			},
 			creationTime: integration.After,
 		},
-		"container_id://foobarquux": &KubeContainerService{
-			entity:        "container_id://foobarquux",
-			adIdentifiers: []string{"container_id://foobarquux", ""},
+		"docker://foobarquux": &KubeContainerService{
+			entity:        "docker://foobarquux",
+			adIdentifiers: []string{"docker://foobarquux", ""},
 			hosts: map[string]string{
 				"pod": "",
 			},
@@ -123,6 +124,7 @@ func TestCreateKubeletServices(t *testing.T) {
 		actualSvc, ok := actualServices[entity]
 		if !ok {
 			t.Errorf("expected to find service %q, but it was not generated", entity)
+			continue
 		}
 
 		assert.Equal(t, expectedSvc, actualSvc)

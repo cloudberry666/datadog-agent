@@ -214,7 +214,9 @@ func (l *KubeletContainerMetaListener) createContainerService(pod containermeta.
 		return ports[i].Port < ports[j].Port
 	})
 
-	entity := containers.BuildEntityName("container_id", container.ID)
+	// TODO(juliogreff): we can get rid of the runtime after we've migrated
+	// the kubelet provider to the containermeta backed as well
+	entity := containers.BuildEntityName(string(container.Runtime), container.ID)
 	svc := &KubeContainerService{
 		entity:       entity,
 		creationTime: crTime,
