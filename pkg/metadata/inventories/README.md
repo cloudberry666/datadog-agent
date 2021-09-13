@@ -25,7 +25,7 @@ monitored software, ... It depends on each check.
 
 # Format
 
-The payload is a JSON dict with the following field
+The payload is a JSON dict with the following fields
 
 - `hostname` - **string**: the hostname of the agent as show on the status page.
 - `timestamp` - **int**: the timestamp when the payload was created.
