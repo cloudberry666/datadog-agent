@@ -10,7 +10,7 @@ update every 5 minutes (see `inventories_min_interval`).
 # Content
 
 The package offers 2 method to add data to the payload: `SetAgentMetadata` and `SetCheckMetadata`. As the name suggests,
-checks use `SetAgentMetadata` and each metadata is linked to a check ID. Everything agent-related uses the other one.
+checks use `SetCheckMetadata` and each metadata is linked to a check ID. Everything agent-related uses the other one.
 
 Any part of the agent can add metadata to the inventory payload.
 
