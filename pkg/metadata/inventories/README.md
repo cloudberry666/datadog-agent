@@ -21,7 +21,7 @@ monitored software, ... It depends on each check.
 
 ## Agent metadata
 
-`SetAgentMetadata` register data about the agent itself.
+`SetAgentMetadata` registers data about the agent itself.
 
 # Format
 
