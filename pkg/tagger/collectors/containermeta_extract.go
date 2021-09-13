@@ -202,10 +202,15 @@ func (c *ContainerMetaCollector) handleKubePod(ev containermeta.Event) []*TagInf
 			}
 		}
 
-		standardEnvKeys := []string{envVarEnv, envVarVersion, envVarService}
-		for _, key := range standardEnvKeys {
+		// Enrich with standard tags from environment variables
+		standardEnvKeys := map[string]string{
+			envVarEnv:     tagKeyEnv,
+			envVarVersion: tagKeyVersion,
+			envVarService: tagKeyService,
+		}
+		for key, tag := range standardEnvKeys {
 			if value, ok := container.EnvVars[key]; ok && value != "" {
-				cTags.AddStandard(key, value)
+				cTags.AddStandard(tag, value)
 			}
 		}
 
